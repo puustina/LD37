@@ -18,9 +18,13 @@ conf = {
 				if game.selected == OBJECTS.PLAYER then 
 					game.selected = OBJECTS.EXTRAPIECE_H 
 				elseif game.selected == OBJECTS.EXTRAPIECE_H then
-					local temp = game.extraPiece.x
-					game.extraPiece.x = math.min(game.extraPiece.y, conf.area.w - 1)
-					game.extraPiece.y = math.min(temp, conf.area.h - 1)
+					if game.extraPiece.x == 0 or game.extraPiece == conf.area.w + 1 then
+						game.extraPiece.y = 0
+						game.extraPiece.x = 1
+					elseif game.extraPiece.y == 0 or game.extraPiece == conf.area.w + 1 then
+						game.extraPiece.x = 0
+						game.extraPiece.y = 1
+					end
 					game.selected = OBJECTS.EXTRAPIECE_V
 				else
 					game.selected = OBJECTS.PLAYER 
@@ -107,10 +111,16 @@ game = {
 		y = 3,
 		s = 1,
 		d = -1,
-		image = nil,
+		tile = nil,
 		draw = function(self, direction, tiles, player, enemy)
-			g.setColor(self.image, self.image, self.image)
+			g.setColor(self.tile[1], self.tile[1], self.tile[1])
+			if self.tile[2] then g.setColor(self.tile[1], self.tile[1], 255) end
 			g.rectangle("fill", self.x * conf.tile.w, self.y * conf.tile.h, conf.tile.w * self.s, conf.tile.h * self.s)
+		
+			if self.tile[3] and not self.tile[3].found then
+				g.setColor(self.tile[3].i*50, 0, 0)
+				g.rectangle("fill", self.x * conf.tile.w, self.y * conf.tile.h, conf.tile.w * self.s, conf.tile.h * self.s)
+			end
 		end,
 		move = function(self, direction, tiles, player, enemy)
 			if self.x == 0 and direction == DIRECTIONS.LEFT then
@@ -145,6 +155,11 @@ game = {
 					g.setColor(c, c, c)
 					if self.tiles[x][y][2] then g.setColor(c, c, 255) end
 					g.rectangle("fill", (x - 1) * conf.tile.w, (y - 1) * conf.tile.h, conf.tile.w, conf.tile.h)
+			
+					if self.tiles[x][y][3] and not self.tiles[x][y][3].found then
+						g.setColor(self.tiles[x][y][3].i*50, 0, 0)
+						g.rectangle("fill", (x - 1) * conf.tile.w, (y - 1) * conf.tile.h, conf.tile.w, conf.tile.h)
+					end
 				end
 
 			end
@@ -152,13 +167,13 @@ game = {
 	},
 	treasure = {
 		{}, -- treasures will have position, image and a boolean for found
-		{},
+		{}, -- these are here just to remind me :)
 		{},
 		{}, 
 		uiPos = { { 0, 0 }, { 0, conf.area.h + 1 }, { conf.area.w + 1, 0 }, { conf.area.w + 1, conf.area.h + 1 } },
 		draw = function(self)
 			for i, j in ipairs(self.uiPos) do
-				g.setColor(i*50, 0, 0)
+				g.setColor(i*50, 0, 0, 175)
 				g.rectangle("fill", j[1] * conf.tile.w, j[2] * conf.tile.h, conf.tile.w, conf.tile.h)
 			end
 		end
@@ -190,12 +205,34 @@ function love.load()
 	for x = 1, conf.area.w, 1 do
 		game.area.tiles[x] = {}
 		for y = 1, conf.area.h, 1 do
-			bool = false
+			local bool = false
 			if math.random() < 0.25 then bool = true end
-			game.area.tiles[x][y] = { math.random(100, 150), bool }
+			game.area.tiles[x][y] = { math.random(100, 150), bool, false }
 		end
-	end	
-	game.extraPiece.image = math.random(100, 150)
+	end
+	for i = 1, 4, 1 do
+		local notPlaced = true
+		while notPlaced do
+			local x = math.random(1, conf.area.w)
+			local y = math.random(1, conf.area.h)
+			if not game.area.tiles[x][y][2] and (x ~= game.player.x and y ~= game.player.y) and (x ~= game.enemy.x and y ~= game.enemy.y) then
+				for j = 1, #game.treasure, 1 do
+					if game.treasure[j].x == x and game.treasure[j].y == y then
+						break
+					elseif j == #game.treasure then
+						game.treasure[i] = {
+							i = i,
+							found = false
+						}
+						game.area.tiles[x][y][3] = game.treasure[i]
+						notPlaced = false
+					end
+				end
+			end
+		end
+	end
+	local bool = false; if math.random() < 0.25 then bool = true end
+	game.extraPiece.tile = { math.random(100, 150), bool, false }
 end
 
 function updateSize(object, dt)
