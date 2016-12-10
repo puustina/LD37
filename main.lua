@@ -18,10 +18,10 @@ conf = {
 				if game.selected == OBJECTS.PLAYER then 
 					game.selected = OBJECTS.EXTRAPIECE_H 
 				elseif game.selected == OBJECTS.EXTRAPIECE_H then
-					if game.extraPiece.x == 0 or game.extraPiece == conf.area.w + 1 then
+					if game.extraPiece.x == 0 or game.extraPiece.x == conf.area.w + 1 then
 						game.extraPiece.y = 0
 						game.extraPiece.x = 1
-					elseif game.extraPiece.y == 0 or game.extraPiece == conf.area.w + 1 then
+					elseif game.extraPiece.y == 0 or game.extraPiece.y == conf.area.h + 1 then
 						game.extraPiece.x = 0
 						game.extraPiece.y = 1
 					end
@@ -125,6 +125,7 @@ game = {
 			end
 		end,
 		move = function(self, direction, tiles, player, enemy)
+			moveTaken = false -- this whole block needs refactoring :-l
 			if self.x == 0 and direction == DIRECTIONS.LEFT then
 				self.x = conf.area.w + 1
 			elseif self.x == conf.area.w + 1 and direction == DIRECTIONS.RIGHT then
@@ -132,6 +133,42 @@ game = {
 			elseif self.y == 0 and direction == DIRECTIONS.UP then
 				self.y = conf.area.h + 1
 			elseif self.y == conf.area.h + 1 and direction == DIRECTIONS.DOWN then
+				self.y = 0	
+			elseif self.x == 0 and direction == DIRECTIONS.RIGHT and (player.y ~= self.y or player.x ~= conf.area.w) and (enemy.y ~= self.y or enemy.x ~= conf.area.w) then
+				moveTaken = true
+				local temp = { tiles[conf.area.w][self.y][1], tiles[conf.area.w][self.y][2], tiles[conf.area.w][self.y][3] }
+				for i = conf.area.w, 2, -1 do
+					tiles[i][self.y] = tiles[i - 1][self.y]
+				end
+				tiles[1][self.y] = self.tile
+				self.tile = temp
+				self.x = conf.area.w + 1
+			elseif self.x == conf.area.w + 1 and direction == DIRECTIONS.LEFT and (player.y ~= self.y or player.x ~= 0) and (enemy.y ~= self.y or enemy.x ~= 0) then
+				moveTaken = true
+				local temp = { tiles[1][self.y][1], tiles[1][self.y][2], tiles[1][self.y][3] }
+				for i = 1, conf.area.w - 1, 1 do
+					tiles[i][self.y] = tiles[i + 1][self.y]
+				end
+				tiles[conf.area.w][self.y] = self.tile
+				self.tile = temp
+				self.x = 0
+			elseif self.y == 0 and direction == DIRECTIONS.DOWN and (player.x ~= self.x or player.y ~= conf.area.h) and (enemy.x ~= self.x or enemy.y ~= conf.area.h) then
+				moveTaken = true
+				local temp = { tiles[self.x][conf.area.h][1], tiles[self.x][conf.area.h][2], tiles[self.x][conf.area.h][3] }
+				for i = conf.area.h, 2, -1 do
+					tiles[self.x][i] = tiles[self.x][i - 1]
+				end
+				tiles[self.x][1] = self.tile
+				self.tile = temp
+				self.y = conf.area.h + 1
+			elseif self.y == conf.area.h + 1 and direction == DIRECTIONS.UP and (player.x ~= self.x or player.y ~= 1) and (enemy.x ~= self.x or enemy.y ~= 1) then
+				moveTaken = true
+				local temp = { tiles[self.x][1][1], tiles[self.x][1][2], tiles[self.x][1][3] }
+				for i = 1, conf.area.h - 1, 1 do
+					tiles[self.x][i] = tiles[self.x][i + 1]
+				end
+				tiles[self.x][conf.area.h] = self.tile
+				self.tile = temp
 				self.y = 0
 			elseif self.x == 0 or self.x == conf.area.w + 1 then
 				if direction == DIRECTIONS.UP and self.y > 1 then
@@ -146,6 +183,7 @@ game = {
 					self.x = self.x + 1
 				end
 			end
+			return moveTaken
 		end
 	},
 	area = {
@@ -176,7 +214,7 @@ game = {
 		draw = function(self)
 			for i, j in ipairs(self.uiPos) do
 				if not self[i].found then
-					g.setColor(i*50, 0, 0, 175)
+					g.setColor(i*50, 0, 0)
 					g.rectangle("fill", j[1] * conf.tile.w, j[2] * conf.tile.h, conf.tile.w, conf.tile.h)
 				end
 			end
