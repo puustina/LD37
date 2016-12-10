@@ -91,6 +91,8 @@ game = {
 			if nX > 0 and nY > 0 and nX <= conf.area.w and nY <= conf.area.h and not tiles[nX][nY][2] then
 				self.x = nX
 				self.y = nY
+
+				if tiles[nX][nY][3] and not tiles[nX][nY][3].found then tiles[nX][nY][3].found = true end
 			end
 		end
 	},
@@ -173,8 +175,10 @@ game = {
 		uiPos = { { 0, 0 }, { 0, conf.area.h + 1 }, { conf.area.w + 1, 0 }, { conf.area.w + 1, conf.area.h + 1 } },
 		draw = function(self)
 			for i, j in ipairs(self.uiPos) do
-				g.setColor(i*50, 0, 0, 175)
-				g.rectangle("fill", j[1] * conf.tile.w, j[2] * conf.tile.h, conf.tile.w, conf.tile.h)
+				if not self[i].found then
+					g.setColor(i*50, 0, 0, 175)
+					g.rectangle("fill", j[1] * conf.tile.w, j[2] * conf.tile.h, conf.tile.w, conf.tile.h)
+				end
 			end
 		end
 	}
