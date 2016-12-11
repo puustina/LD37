@@ -94,7 +94,7 @@ game.player = {
 	dir = game.DIRECTIONS.DOWN,
 	draw = function(self)	
 		g.setColor(255, 255, 255)
-		g.draw(game.tilemap, game.pQuad, conf.tile.w/2 + (self.x - 1) * conf.tile.w, conf.tile.h/2 + (self.y - 1) * conf.tile.h, 0, self.s, self.s, conf.tile.w/2, conf.tile.h/2)
+		g.draw(game.tilemap, game.pQuad, conf.tile.w/2 + (self.displayX - 1) * conf.tile.w, conf.tile.h/2 + (self.displayY - 1) * conf.tile.h, 0, self.s, self.s, conf.tile.w/2, conf.tile.h/2)
 	end,
 	move = function(self, direction, tiles)
 		local delta = {}
@@ -105,14 +105,28 @@ game.player = {
 		
 		local nX = self.x + delta[direction][1]
 		local nY = self.y + delta[direction][2]
-		if nX > 0 and nY > 0 and nX <= conf.area.w and nY <= conf.area.h and not tiles[nX][nY].block then
+		if nX > 0 and nY > 0 and nX <= conf.area.w and nY <= conf.area.h and not tiles[nX][nY].block then	
 			love.audio.play(game.pmove)
 			self.x = nX
 			self.y = nY
+			
+			game.timer:tween(0.1, self, { displayX = self.x, displayY = self.y }, "in-out-quad")
 
 			if tiles[nX][nY].treasure and not tiles[nX][nY].treasure.found then 
 				love.audio.play(game.pickup)
 				tiles[nX][nY].treasure.found = true 
+				game.tempTreasures[#game.tempTreasures + 1] = { x = nX, y = nY }
+				local index = 0
+				for i, j in ipairs(game.treasure) do
+					if j == tiles[nX][nY].treasure then
+						index = i
+						break
+					end
+				end
+				game.tempTreasures[#game.tempTreasures].tX = game.treasure.uiPos[index][1]
+				game.tempTreasures[#game.tempTreasures].tY = game.treasure.uiPos[index][2]
+				game.tempTreasures[#game.tempTreasures].quad = game.treasure[index].quad
+				game.timer:tween(0.1, game.tempTreasures[#game.tempTreasures], { x = game.treasure.uiPos[index][1], y = game.treasure.uiPos[index][2] }, "in-out-quad")
 				for i, j in ipairs(game.treasure) do
 					if not j.found then break end
 					if i == #game.treasure then
@@ -121,6 +135,8 @@ game.player = {
 					end
 				end
 			end
+		else
+			love.audio.play(game.cantpush)
 		end
 	end
 }
@@ -128,7 +144,7 @@ game.enemies = {
 	draw = function(self)
 		g.setColor(255, 255, 255)
 		for i, j in ipairs(self) do
-			g.draw(game.tilemap, game.eQuad, (j.x - 1) * conf.tile.w, (j.y - 1) * conf.tile.h)
+			g.draw(game.tilemap, game.eQuad, (j.displayX - 1) * conf.tile.w, (j.displayY - 1) * conf.tile.h)
 		end
 	end,
 	move = function(self, player, tiles)
@@ -232,11 +248,15 @@ game.enemies = {
 			local nextMove = aStar(enemy, _)
 
 			if nextMove then
-				if #nextMove > 2 then 
-					nextMove = nextMove[#nextMove - 2] 
+				if #nextMove > 2 then
+					enemy.waypoints[#enemy.waypoints + 1] = nextMove[#nextMove - 1]
+					enemy.waypoints[#enemy.waypoints + 1] = nextMove[#nextMove - 2]
+					nextMove = nextMove[#nextMove - 2]
 				else
+					enemy.waypoints[#enemy.waypoints + 1] = nextMove[#nextMove - 1]
 					nextMove = nextMove[#nextMove - 1]
 				end
+				
 				if nextMove then
 					love.audio.play(game.emove)
 					enemy.x = nextMove[1]
@@ -322,6 +342,7 @@ game.extraPiece = {
 					else
 						j.x = j.x + 1
 					end
+					j.displayX = j.x
 				end
 			end
 			if direction == game.DIRECTIONS.UP or direction == game.DIRECTIONS.DOWN then
@@ -335,6 +356,7 @@ game.extraPiece = {
 					else
 						j.y = j.y + 1
 					end
+					j.displayY = j.y
 				end
 			end
 		end
@@ -432,15 +454,16 @@ game.treasure = {
 	uiPos = { { 0, 0 }, { 0, conf.area.h + 1 }, { conf.area.w + 1, 0 }, { conf.area.w + 1, conf.area.h + 1 } },
 	draw = function(self)
 		for i, j in ipairs(self.uiPos) do
-			local alpha = 255
-			if self[i].found then alpha = 75 end
-			g.setColor(255, 255, 255, alpha)
-			g.draw(game.tilemap, game.treasureQuads[i], self.uiPos[i][1] * conf.tile.w, self.uiPos[i][2] * conf.tile.h)
+			if not self[i].found then
+				g.setColor(255, 255, 255, 75)
+				g.draw(game.tilemap, game.treasureQuads[i], self.uiPos[i][1] * conf.tile.w, self.uiPos[i][2] * conf.tile.h)
+			end
 		end
 	end
 }
 
 function game:entering()
+	self.tempTreasures = {}
 	self.levelOver = false
 	math.randomseed(level)
 	for x = 1, conf.area.w, 1 do
@@ -452,20 +475,28 @@ function game:entering()
 	self.area.tiles[1][3].block = self.pSpawnQuad
 	self.area.tiles[1][4].block = nil
 	self.player.x = 1
+	self.player.displayX = 1
 	self.player.y = 4
+	self.player.displayY = 4
 	self.area.tiles[conf.area.w][4].block = self.eSpawnQuad
 	local spawns = { 3, 5, 2, 6, 1 }
 	for i = 1, level, 1 do
 		self.area.tiles[conf.area.w][spawns[i] ].block = nil
 		self.enemies[i] = { 
 			x = conf.area.w,
-			y = spawns[i]
+			displayX = conf.area.w,
+			y = spawns[i],
+			displayY = spawns[i],
+			waypoints = {},
+			handle = nil
 		}
 	end
 	local block = nil
 	self.extraPiece.tile = self.newTile()
 	self.extraPiece.x = 0
+	self.extraPiece.displayX = 0
 	self.extraPiece.y = conf.area.h/2
+	self.extraPiece.displayY = conf.area.h/2
 	for i = 1, 4, 1 do
 		local notPlaced = true
 		self.treasure[i] = {}
@@ -514,7 +545,12 @@ end
 
 function game:update(dt)
 	self.timer:update(dt)
-	-- only for graphics
+	for i, j in ipairs(self.enemies) do
+		if not j.handle and #j.waypoints > 0 then
+			j.handle = self.timer:tween(0.1, j, { displayX = j.waypoints[1][1], displayY = j.waypoints[1][2] }, "in-out-quad", function() j.handle = nil end)
+			table.remove(j.waypoints, 1)
+		end
+	end
 	if self.selected == self.OBJECTS.PLAYER then
 		updateSize(self.player, dt)
 		resetSize(self.extraPiece)
@@ -535,6 +571,10 @@ function game:draw()
 	game.area:draw()
 	game.player:draw()
 	game.enemies:draw()
+	g.translate(-conf.tile.w, -conf.tile.h)
+	for i, j in ipairs(game.tempTreasures) do
+		g.draw(self.tilemap, j.quad, j.x * conf.tile.w, j.y * conf.tile.h)
+	end
 	postDraw()
 end
 
