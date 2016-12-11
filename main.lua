@@ -16,6 +16,7 @@ victory = require "src.victory"
 won = require "src.won"
 
 function love.load()
+	love.audio.setVolume(0.5)
 	GS.timer = Timer
 	GS.effect = "fade"
 	GS.duration = 1
