@@ -1,7 +1,7 @@
 local g = love.graphics
 
 DIRECTIONS = { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3 }
-OBJECTS = { PLAYER = 0, EXTRAPIECE_V = 1 }
+OBJECTS = { PLAYER = 0, EXTRAPIECE = 1 }
 
 conf = {
 	tile = {
@@ -78,6 +78,28 @@ conf = {
 	scale = 1
 }
 
+local tilemap = g.newImage("assets/tilemap.png")
+local pQuad = g.newQuad(0, 0, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+local eQuad = g.newQuad(conf.tile.w, 0, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+local pSpawnQuad = g.newQuad(2 * conf.tile.w, 0, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+local eSpawnQuad = g.newQuad(3 * conf.tile.w, 0, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+local floorQuads = {}
+local FLOORQUADCOUNT = 5
+for i = 1, FLOORQUADCOUNT, 1 do
+	floorQuads[i] = g.newQuad((i - 1) * conf.tile.w, conf.tile.h, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+end
+local obstacleQuads = {}
+local OBSTACLEQUADCOUNT = 4
+for i = 1, OBSTACLEQUADCOUNT, 1 do
+	obstacleQuads[i] = g.newQuad((i - 1) * conf.tile.w, 2 * conf.tile.h, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+end
+local treasureQuads = {}
+local TREASUREQUADCOUNT = 4
+for i = 1, TREASUREQUADCOUNT, 1 do
+	treasureQuads[i] = g.newQuad((i - 1) * conf.tile.w, 3 * conf.tile.h, conf.tile.w, conf.tile.h, tilemap:getDimensions())
+end
+local bg = g.newImage("assets/bg.png")
+
 game = {
 	selected = OBJECTS.PLAYER,
 	player = {
@@ -86,9 +108,9 @@ game = {
 		s = 1,
 		d = -1,
 		dir = DIRECTIONS.DOWN,
-		draw = function(self)
+		draw = function(self)	
 			g.setColor(255, 255, 255)
-			g.rectangle("fill", 12 + (self.x - 1) * conf.tile.w, 12 + (self.y - 1) * conf.tile.h, 40 * self.s, 40 * self.s)
+			g.draw(tilemap, pQuad, conf.tile.w/2 + (self.x - 1) * conf.tile.w, conf.tile.h/2 + (self.y - 1) * conf.tile.h, 0, self.s, self.s, conf.tile.w/2, conf.tile.h/2)
 		end,
 		move = function(self, direction, tiles)
 			local delta = {}
@@ -99,12 +121,12 @@ game = {
 		
 			local nX = self.x + delta[direction][1]
 			local nY = self.y + delta[direction][2]
-			if nX > 0 and nY > 0 and nX <= conf.area.w and nY <= conf.area.h and not tiles[nX][nY][2] then
+			if nX > 0 and nY > 0 and nX <= conf.area.w and nY <= conf.area.h and not tiles[nX][nY].block then
 				self.x = nX
 				self.y = nY
 
-				if tiles[nX][nY][3] and not tiles[nX][nY][3].found then 
-					tiles[nX][nY][3].found = true 
+				if tiles[nX][nY].treasure and not tiles[nX][nY].treasure.found then 
+					tiles[nX][nY].treasure.found = true 
 					for i, j in ipairs(game.treasure) do
 						if not j.found then break end
 						if i == #game.treasure then
@@ -121,8 +143,8 @@ game = {
 		y = 6,
 		dir = DIRECTIONS.UP,
 		draw = function(self)
-			g.setColor(0, 0, 0)
-			g.rectangle("fill", 12 + (self.x - 1) * conf.tile.w, 12 + (self.y - 1) * conf.tile.h, 40, 40)
+			g.setColor(255, 255, 255)
+			g.draw(tilemap, eQuad, conf.tile.w/2 + (self.x - 1) * conf.tile.w, conf.tile.h/2 + (self.y - 1) * conf.tile.h, 0, self.s, self.s, conf.tile.w/2, conf.tile.h/2)
 		end,
 		move = function(self, player, tiles)
 			-- use A*, same naming as with the wikipedia pseudocode
@@ -176,7 +198,7 @@ game = {
 					closedSet[#closedSet + 1] = current
 					for dx = -1, 1, 1 do
 						for dy = -1, 1, 1 do
-							if math.abs(dx) + math.abs(dy) == 1 and current[1] + dx > 0 and current[1] + dx <= conf.area.w and current[2] + dy > 0 and current[2] + dy <= conf.area.h and not tiles[current[1] + dx][current[2] + dy][2] then
+							if math.abs(dx) + math.abs(dy) == 1 and current[1] + dx > 0 and current[1] + dx <= conf.area.w and current[2] + dy > 0 and current[2] + dy <= conf.area.h and not tiles[current[1] + dx][current[2] + dy].block then
 								-- neighbours
 								local skip = false
 								for i, j in ipairs(closedSet) do
@@ -241,14 +263,7 @@ game = {
 		d = -1,
 		tile = nil,
 		draw = function(self, direction, tiles, player, enemy)
-			g.setColor(self.tile[1], self.tile[1], self.tile[1])
-			if self.tile[2] then g.setColor(self.tile[1], 255, 255) end
-			g.rectangle("fill", self.x * conf.tile.w, self.y * conf.tile.h, conf.tile.w * self.s, conf.tile.h * self.s)
-		
-			if self.tile[3] and not self.tile[3].found then
-				g.setColor(self.tile[3].i*50, 0, 0)
-				g.rectangle("fill", self.x * conf.tile.w, self.y * conf.tile.h, conf.tile.w * self.s, conf.tile.h * self.s)
-			end
+			drawTile(self.x, self.y, self.s, self.tile)
 		end,
 		move = function(self, direction, tiles, player, enemy)
 			moveTaken = false -- this whole block needs refactoring :-l
@@ -261,8 +276,9 @@ game = {
 			elseif self.y == conf.area.h + 1 and direction == DIRECTIONS.DOWN then
 				self.y = 0	
 			elseif self.x == 0 and direction == DIRECTIONS.RIGHT and (player.y ~= self.y or player.x ~= conf.area.w) and (enemy.y ~= self.y or enemy.x ~= conf.area.w) then
-				moveTaken = true
-				local temp = { tiles[conf.area.w][self.y][1], tiles[conf.area.w][self.y][2], tiles[conf.area.w][self.y][3] }
+				moveTaken = true	
+				local tT = tiles[conf.area.w][self.y]
+				local temp = { quad = tT.quad, block = tT.block, treasure = tT.treasure }
 				for i = conf.area.w, 2, -1 do
 					tiles[i][self.y] = tiles[i - 1][self.y]
 				end
@@ -273,7 +289,8 @@ game = {
 				if enemy.y == self.y then enemy.x = enemy.x + 1 end
 			elseif self.x == conf.area.w + 1 and direction == DIRECTIONS.LEFT and (player.y ~= self.y or player.x ~= 1) and (enemy.y ~= self.y or enemy.x ~= 1) then
 				moveTaken = true
-				local temp = { tiles[1][self.y][1], tiles[1][self.y][2], tiles[1][self.y][3] }
+				local tT = tiles[1][self.y]
+				local temp = { quad = tT.quad, block = tT.block, treasure = tT.treasure }
 				for i = 1, conf.area.w - 1, 1 do
 					tiles[i][self.y] = tiles[i + 1][self.y]
 				end
@@ -284,7 +301,8 @@ game = {
 				if enemy.y == self.y then enemy.x = enemy.x - 1 end
 			elseif self.y == 0 and direction == DIRECTIONS.DOWN and (player.x ~= self.x or player.y ~= conf.area.h) and (enemy.x ~= self.x or enemy.y ~= conf.area.h) then
 				moveTaken = true
-				local temp = { tiles[self.x][conf.area.h][1], tiles[self.x][conf.area.h][2], tiles[self.x][conf.area.h][3] }
+				local tT = tiles[self.x][conf.area.h]
+				local temp = { quad = tT.quad, block = tT.block, treasure = tT.treasure }
 				for i = conf.area.h, 2, -1 do
 					tiles[self.x][i] = tiles[self.x][i - 1]
 				end
@@ -295,7 +313,8 @@ game = {
 				if enemy.x == self.x then enemy.y = enemy.y + 1 end
 			elseif self.y == conf.area.h + 1 and direction == DIRECTIONS.UP and (player.x ~= self.x or player.y ~= 1) and (enemy.x ~= self.x or enemy.y ~= 1) then
 				moveTaken = true
-				local temp = { tiles[self.x][1][1], tiles[self.x][1][2], tiles[self.x][1][3] }
+				local tT = tiles[self.x][1]
+				local temp = { quad = tT.quad, block = tT.block, treasure = tT.treasure }
 				for i = 1, conf.area.h - 1, 1 do
 					tiles[self.x][i] = tiles[self.x][i + 1]
 				end
@@ -325,36 +344,35 @@ game = {
 		draw = function(self)
 			for x = 1, conf.area.w, 1 do
 				for y = 1, conf.area.h, 1 do
-					local c = self.tiles[x][y][1]
-					g.setColor(c, c, c)
-					if self.tiles[x][y][2] then g.setColor(c, 255, 255) end
-					g.rectangle("fill", (x - 1) * conf.tile.w, (y - 1) * conf.tile.h, conf.tile.w, conf.tile.h)
-			
-					if self.tiles[x][y][3] and not self.tiles[x][y][3].found then
-						g.setColor(self.tiles[x][y][3].i*50, 0, 0)
-						g.rectangle("fill", (x - 1) * conf.tile.w, (y - 1) * conf.tile.h, conf.tile.w, conf.tile.h)
-					end
+					drawTile(x - 1, y - 1, 1, self.tiles[x][y])
 				end
 
 			end
 		end
 	},
 	treasure = {
-		{}, -- treasures will have position, image and a boolean for found
-		{}, -- these are here just to remind me :)
-		{},
-		{}, 
 		uiPos = { { 0, 0 }, { 0, conf.area.h + 1 }, { conf.area.w + 1, 0 }, { conf.area.w + 1, conf.area.h + 1 } },
 		draw = function(self)
 			for i, j in ipairs(self.uiPos) do
 				if not self[i].found then
-					g.setColor(i*50, 0, 0)
-					g.rectangle("fill", j[1] * conf.tile.w, j[2] * conf.tile.h, conf.tile.w, conf.tile.h)
+					g.setColor(255, 255, 255)
+					g.draw(tilemap, treasureQuads[i], self.uiPos[i][1] * conf.tile.w, self.uiPos[i][2] * conf.tile.h)
 				end
 			end
 		end
 	}
 }
+
+function drawTile(x, y, scale, tile)
+	g.setColor(255, 255, 255)
+	g.draw(tilemap, tile.quad, conf.tile.w/2 + x * conf.tile.w, conf.tile.h/2 + y * conf.tile.h, 0, scale, scale, conf.tile.w/2, conf.tile.h/2)
+
+	if tile.block then
+		g.draw(tilemap, tile.block, conf.tile.w/2 + x * conf.tile.w, conf.tile.h/2 + y * conf.tile.h, 0, scale, scale, conf.tile.w/2, conf.tile.h/2)
+	elseif tile.treasure and not tile.treasure.found then
+		g.draw(tilemap, tile.treasure.quad, conf.tile.w/2 + x * conf.tile.w, conf.tile.h/2 + y * conf.tile.h, 0, scale, scale, conf.tile.w/2, conf.tile.h/2)
+	end
+end
 
 function handleMove(direction)
 	success = false
@@ -393,50 +411,68 @@ function setWindowSize()
 	love.window.setMode(conf.scale * (conf.area.w * conf.tile.w + 2 * conf.tile.w), conf.scale * (conf.area.h * conf.tile.h + 2 * conf.tile.h))
 end
 
+function newTile()
+	local block = nil
+	if math.random() < 0.15 then block = obstacleQuads[math.random(1, OBSTACLEQUADCOUNT)]  end
+	return { quad = floorQuads[math.random(1, FLOORQUADCOUNT)], block = block, treasure = nil }
+end
+
 function love.load()
 	setWindowSize()
 
 	for x = 1, conf.area.w, 1 do
 		game.area.tiles[x] = {}
 		for y = 1, conf.area.h, 1 do
-			local bool = false
-			if math.random() < 0.1 then bool = true end
-			game.area.tiles[x][y] = { math.random(100, 150), bool, false }
+			game.area.tiles[x][y] = newTile()
 		end
 	end
+	game.area.tiles[1][3].block = pSpawnQuad
+	game.area.tiles[1][4].block = nil
+	game.player.x = 1
+	game.player.y = 4
+	game.area.tiles[conf.area.w][4].block = eSpawnQuad
+	game.area.tiles[conf.area.w][3].block = nil
+	game.enemy.x = conf.area.w
+	game.enemy.y = 3
+	local block = nil
+	game.extraPiece.tile = newTile()
 	for i = 1, 4, 1 do
 		local notPlaced = true
 		while notPlaced do
 			local x = math.random(1, conf.area.w)
 			local y = math.random(1, conf.area.h)
-			if not game.area.tiles[x][y][2] and (x ~= game.player.x and y ~= game.player.y) and (x ~= game.enemy.x and y ~= game.enemy.y) then
+			if not game.area.tiles[x][y].block and (x ~= game.player.x and y ~= game.player.y) and (x ~= game.enemy.x and y ~= game.enemy.y) then
+				local found = false
 				for j = 1, #game.treasure, 1 do
 					if game.treasure[j].x == x and game.treasure[j].y == y then
+						found = true
 						break
-					elseif j == #game.treasure then
-						game.treasure[i] = {
-							i = i,
-							found = false
-						}
-						game.area.tiles[x][y][3] = game.treasure[i]
-						notPlaced = false
 					end
+				end
+
+				if not found then
+					game.treasure[i] = {
+						x = x,
+						y = y, -- only for spawning
+						quad = treasureQuads[i],
+						found = false
+					}
+					game.area.tiles[x][y].treasure = game.treasure[i]
+					notPlaced = false
 				end
 			end
 		end
 	end
-	local bool = false; if math.random() < 0.25 then bool = true end
-	game.extraPiece.tile = { math.random(100, 150), bool, false }
 end
 
 function updateSize(object, dt)
 	object.s = object.s + 0.4 * object.d * dt
-	if object.s < 0.75 then
+	if object.s < 0.85 then
 		object.d = -object.d
-		object.s = 0.75
-	elseif object.s > 1 then
+		object.s = 0.85
+	elseif object.s > 1.15 then
 		object.d = -object.d
-		object.s = 1
+		object.s = 1.15
 	end
 end
 
@@ -468,6 +504,9 @@ end
 function love.draw()
 	g.push()
 	g.scale(conf.scale, conf.scale)
+	g.setBackgroundColor(100, 100, 100)
+	g.setColor(255, 255, 255)
+	g.draw(bg, 0, 0)
 	game.treasure:draw()
 	game.extraPiece:draw()
 	g.translate(conf.tile.w, conf.tile.h)
