@@ -92,7 +92,16 @@ game = {
 				self.x = nX
 				self.y = nY
 
-				if tiles[nX][nY][3] and not tiles[nX][nY][3].found then tiles[nX][nY][3].found = true end
+				if tiles[nX][nY][3] and not tiles[nX][nY][3].found then 
+					tiles[nX][nY][3].found = true 
+					for i, j in ipairs(game.treasure) do
+						if not j.found then break end
+						if i == #game.treasure then
+							print("you win")
+							love.event.quit()
+						end
+					end
+				end
 			end
 		end
 	},
@@ -105,7 +114,108 @@ game = {
 			g.rectangle("fill", 12 + (self.x - 1) * conf.tile.w, 12 + (self.y - 1) * conf.tile.h, 40, 40)
 		end,
 		move = function(self, player, tiles)
-			self.x = self.x - 1
+			-- use A*, same naming as with the wikipedia pseudocode
+			local reconstructPath = function(cameFrom, current)
+				while cameFrom[current[1] ][current[2] ] do
+					if cameFrom[current[1] ][current[2] ][1] == self.x and cameFrom[current[1] ][current[2] ][2] == self.y then break end
+					current = cameFrom[current[1] ][current[2] ]
+					-- we actually don't need the whole path!
+				end
+				return current -- just gives us the (second) last one
+			end
+			local aStar = function()
+				local closedSet = {}
+				local openSet = { { self.x, self.y } }
+				local cameFrom = {}
+				for x = 1, conf.area.w, 1 do
+					cameFrom[x] = {}
+				end
+				local gScore = {}
+				for x = 1, conf.area.w, 1 do
+					gScore[x] = {}
+					for y = 1, conf.area.h, 1 do
+						gScore[x][y] = math.huge
+					end
+				end
+				gScore[self.x][self.y] = 0
+				local fScore = {}
+				for x = 1, conf.area.w, 1 do
+					fScore[x] = {}
+					for y = 1, conf.area.h, 1 do
+						fScore[x][y] = math.huge
+					end
+				end
+				fScore[self.x][self.y] = math.abs(self.x - player.x) + math.abs(self.y - player.y)
+				while #openSet > 0 do
+					local lowestNmbr = math.huge
+					local lowest = {}
+					local lowestIndx
+					for i, j in ipairs(openSet) do
+						if fScore[j[1] ][j[2] ] <= lowestNmbr then
+							lowestNmbr = fScore[j[1] ][j[2] ]
+							lowest = j
+							lowestIndx = i
+						end
+					end
+					current = { lowest[1], lowest[2] }
+					if current[1] == player.x and current[2] == player.y then
+						return reconstructPath(cameFrom, current)
+					end
+					table.remove(openSet, lowestIndx)
+					closedSet[#closedSet + 1] = current
+					for dx = -1, 1, 1 do
+						for dy = -1, 1, 1 do
+							if math.abs(dx) + math.abs(dy) == 1 and current[1] + dx > 0 and current[1] + dx <= conf.area.w and current[2] + dy > 0 and current[2] + dy <= conf.area.h and not tiles[current[1] + dx][current[2] + dy][2] then
+								-- neighbours
+								local skip = false
+								for i, j in ipairs(closedSet) do
+									if j[1] == current[1] + dx and j[2] == current[2] + dy then
+										skip = true
+										break
+									end
+								end
+								if not skip then
+									local tentativeGScore = gScore[current[1] ][current[2] ] + 1
+									local found = false
+									local index = nil
+									for i, j in ipairs(openSet) do
+										if j[1] == current[1] + dx and j[2] == current[2] + dy then
+											found = true
+											index = i
+											break
+										end
+									end
+									local skip2 = false
+									if not found then
+										openSet[#openSet + 1] = { current[1] + dx, current[2] + dy }
+									elseif tentativeGScore >= gScore[current[1] + dx][current[2] + dy] then
+										skip2 = true
+									end
+
+									if not skip2 then
+										cameFrom[current[1] + dx][current[2] + dy] = { current[1], current[2] }
+										gScore[current[1] + dx][current[2] + dy] = tentativeGScore
+										fScore[current[1] + dx][current[2] + dy] = gScore[current[1] + dx][current[2] + dy] + math.abs(player.x - (current[1] + dx)) + math.abs(player.y - (current[2] + dy))
+									end
+								end
+							end
+						end
+					end
+				end
+				return false
+			end
+
+			local nextMove = aStar()
+
+			if nextMove then
+				self.x = nextMove[1]
+				self.y = nextMove[2]
+			end
+
+			if self.x == player.x and self.y == player.y then
+				print("you lose")
+				love.event.quit()
+			end
 		end
 	},
 	extraPiece = {
@@ -143,7 +253,9 @@ game = {
 				tiles[1][self.y] = self.tile
 				self.tile = temp
 				self.x = conf.area.w + 1
-			elseif self.x == conf.area.w + 1 and direction == DIRECTIONS.LEFT and (player.y ~= self.y or player.x ~= 0) and (enemy.y ~= self.y or enemy.x ~= 0) then
+				if player.y == self.y then player.x = player.x + 1 end
+				if enemy.y == self.y then enemy.x = enemy.x + 1 end
+			elseif self.x == conf.area.w + 1 and direction == DIRECTIONS.LEFT and (player.y ~= self.y or player.x ~= 1) and (enemy.y ~= self.y or enemy.x ~= 1) then
 				moveTaken = true
 				local temp = { tiles[1][self.y][1], tiles[1][self.y][2], tiles[1][self.y][3] }
 				for i = 1, conf.area.w - 1, 1 do
@@ -152,6 +264,8 @@ game = {
 				tiles[conf.area.w][self.y] = self.tile
 				self.tile = temp
 				self.x = 0
+				if player.y == self.y then player.x = player.x - 1 end
+				if enemy.y == self.y then enemy.x = enemy.x - 1 end
 			elseif self.y == 0 and direction == DIRECTIONS.DOWN and (player.x ~= self.x or player.y ~= conf.area.h) and (enemy.x ~= self.x or enemy.y ~= conf.area.h) then
 				moveTaken = true
 				local temp = { tiles[self.x][conf.area.h][1], tiles[self.x][conf.area.h][2], tiles[self.x][conf.area.h][3] }
@@ -161,6 +275,8 @@ game = {
 				tiles[self.x][1] = self.tile
 				self.tile = temp
 				self.y = conf.area.h + 1
+				if player.x == self.x then player.y = player.y + 1 end
+				if enemy.x == self.x then enemy.y = enemy.y + 1 end
 			elseif self.y == conf.area.h + 1 and direction == DIRECTIONS.UP and (player.x ~= self.x or player.y ~= 1) and (enemy.x ~= self.x or enemy.y ~= 1) then
 				moveTaken = true
 				local temp = { tiles[self.x][1][1], tiles[self.x][1][2], tiles[self.x][1][3] }
@@ -170,6 +286,8 @@ game = {
 				tiles[self.x][conf.area.h] = self.tile
 				self.tile = temp
 				self.y = 0
+				if player.x == self.x then player.y = player.y - 1 end
+				if enemy.x == self.x then enemy.y = enemy.y - 1 end
 			elseif self.x == 0 or self.x == conf.area.w + 1 then
 				if direction == DIRECTIONS.UP and self.y > 1 then
 					self.y = self.y - 1
@@ -193,7 +311,7 @@ game = {
 				for y = 1, conf.area.h, 1 do
 					local c = self.tiles[x][y][1]
 					g.setColor(c, c, c)
-					if self.tiles[x][y][2] then g.setColor(c, c, 255) end
+					if self.tiles[x][y][2] then g.setColor(c, 255, 255) end
 					g.rectangle("fill", (x - 1) * conf.tile.w, (y - 1) * conf.tile.h, conf.tile.w, conf.tile.h)
 			
 					if self.tiles[x][y][3] and not self.tiles[x][y][3].found then
@@ -248,7 +366,7 @@ function love.load()
 		game.area.tiles[x] = {}
 		for y = 1, conf.area.h, 1 do
 			local bool = false
-			if math.random() < 0.25 then bool = true end
+			if math.random() < 0.1 then bool = true end
 			game.area.tiles[x][y] = { math.random(100, 150), bool, false }
 		end
 	end
