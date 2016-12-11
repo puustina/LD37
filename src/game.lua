@@ -2,6 +2,13 @@ local g = love.graphics
 
 local game = {}
 game.timer = Timer.new()
+game.pmove = love.audio.newSource("assets/pmove.wav", "static")
+game.emove = love.audio.newSource("assets/emove.wav", "static")
+game.pickup = love.audio.newSource("assets/pickup.wav", "static")
+game.eaten = love.audio.newSource("assets/eaten.wav", "static")
+game.change = love.audio.newSource("assets/change.wav", "static")
+game.pushtile = love.audio.newSource("assets/pushtiles.wav", "static")
+game.cantpush = love.audio.newSource("assets/cantpush.wav", "static")
 
 game.DIRECTIONS = { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3 }
 game.OBJECTS = { PLAYER = 0, EXTRAPIECE = 1 }
@@ -99,10 +106,12 @@ game.player = {
 		local nX = self.x + delta[direction][1]
 		local nY = self.y + delta[direction][2]
 		if nX > 0 and nY > 0 and nX <= conf.area.w and nY <= conf.area.h and not tiles[nX][nY].block then
+			love.audio.play(game.pmove)
 			self.x = nX
 			self.y = nY
 
 			if tiles[nX][nY].treasure and not tiles[nX][nY].treasure.found then 
+				love.audio.play(game.pickup)
 				tiles[nX][nY].treasure.found = true 
 				for i, j in ipairs(game.treasure) do
 					if not j.found then break end
@@ -228,14 +237,16 @@ game.enemies = {
 				else
 					nextMove = nextMove[#nextMove - 1]
 				end
-				if nextMove then 
+				if nextMove then
+					love.audio.play(game.emove)
 					enemy.x = nextMove[1]
 					enemy.y = nextMove[2]
 				end
 			end
 
 			if enemy.x == player.x and enemy.y == player.y then
-				if not game.levelOver then 
+				if not game.levelOver then
+					love.audio.play(game.eaten)
 					game.levelOver = true
 					GS.switch(gameover) 
 				end
@@ -263,25 +274,38 @@ game.extraPiece = {
 				end
 				for i, j in ipairs(potentialBlockers) do
 					if direction == game.DIRECTIONS.LEFT then
-						if j.x == 1 then return true end
+						if j.x == 1 then 
+							love.audio.play(game.cantpush)	
+							return true 
+						end
 					else
-						if j.x == conf.area.w then return true end
+						if j.x == conf.area.w then 
+							love.audio.play(game.cantpush)
+							return true 
+						end
 					end
 				end
+				love.audio.play(game.pushtile)
 				return false
-			end
-			if direction == game.DIRECTIONS.UP or direction == game.DIRECTIONS.DOWN then
+			else
 				if player.x == x then potentialBlockers[#potentialBlockers + 1] = player end
 				for i, j in ipairs(enemies) do
 					if j.x == x then potentialBlockers[#potentialBlockers + 1] = j end
 				end
 				for i, j in ipairs(potentialBlockers) do
 					if direction == game.DIRECTIONS.UP then
-						if j.y == 1 then return true end
+						if j.y == 1 then 
+							love.audio.play(game.cantpush)
+							return true 
+						end
 					else
-						if j.y == conf.area.h then return true end
+						if j.y == conf.area.h then 
+							love.audio.play(game.cantpush)
+							return true 
+						end
 					end
 				end
+				love.audio.play(game.pushtile)
 				return false
 			end
 		end
@@ -324,7 +348,6 @@ game.extraPiece = {
 			self.y = 0	
 		elseif self.x == 0 and direction == game.DIRECTIONS.RIGHT then
 			if enemyOrPlayerBlocking(self.x, self.y, direction, player, enemies) then
-				print("illegal move")	
 			else
 				moveTaken = true	
 				local tT = tiles[conf.area.w][self.y]
@@ -339,7 +362,6 @@ game.extraPiece = {
 			end
 		elseif self.x == conf.area.w + 1 and direction == game.DIRECTIONS.LEFT then	
 			if enemyOrPlayerBlocking(self.x, self.y, direction, player, enemies) then
-				print("illegal move")
 			else
 				moveTaken = true
 				local tT = tiles[1][self.y]
@@ -354,7 +376,6 @@ game.extraPiece = {
 			end
 		elseif self.y == 0 and direction == game.DIRECTIONS.DOWN then
 			if enemyOrPlayerBlocking(self.x, self.y, direction, player, enemies) then
-				print("illegal move")
 			else
 				moveTaken = true
 				local tT = tiles[self.x][conf.area.h]
@@ -369,7 +390,6 @@ game.extraPiece = {
 			end
 		elseif self.y == conf.area.h + 1 and direction == game.DIRECTIONS.UP  then
 			if enemyOrPlayerBlocking(self.x, self.y, direction, player, enemies) then
-				print("illegal move")
 			else
 				moveTaken = true
 				local tT = tiles[self.x][1]

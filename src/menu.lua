@@ -3,7 +3,7 @@ local menu = {}
 local g = love.graphics
 
 function menu:init()
-	self.text = "menu"
+	self.text = "LD37 - Dreadroom"
 	self.selected = 0
 end
 

@@ -25,6 +25,7 @@ conf = {
 		change = { "space", 
 			function()
 				if GS.current == game then
+					love.audio.play(game.change)
 					if game.selected == game.OBJECTS.PLAYER then 
 						game.selected = game.OBJECTS.EXTRAPIECE 
 					else
