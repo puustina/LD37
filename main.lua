@@ -20,7 +20,7 @@ function love.load()
 	GS.effect = "fade"
 	GS.duration = 1
 	GS.registerEvents()
-	GS.switch(game)
+	GS.switch(menu)
 end
 
 function love.update(dt)

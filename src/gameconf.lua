@@ -10,15 +10,19 @@ conf = {
 	keys = {
 		scaleUp = { "+",
 			function()
-				conf.scale = 2 * conf.scale
-				setWindowSize()
+				if not menu.waitForNewKey then
+					conf.scale = 2 * conf.scale
+					setWindowSize()
+				end
 			end,
 			"Double the resolution"
 		},
 		scaledown = { "-",
 			function()
-				conf.scale = 0.5 * conf.scale
-				setWindowSize()
+				if not menu.waitForNewKey then
+					conf.scale = 0.5 * conf.scale
+					setWindowSize()
+				end
 			end,
 			"Halve the resolution"
 		},
@@ -37,13 +41,21 @@ conf = {
 		},
 		moveUp = { "up",
 			function()
-				if GS.current == game then game.handleMove(game.DIRECTIONS.UP) end
+				if GS.current == game then 
+					game.handleMove(game.DIRECTIONS.UP)
+				elseif GS.current == menu then
+					menu:handleUp()
+				end
 			end,
 			"Move up in the menu. Move the boy up or push tile up"
 		},
 		moveDown = { "down",
 			function()
-				if GS.current == game then game.handleMove(game.DIRECTIONS.DOWN) end
+				if GS.current == game then 
+					game.handleMove(game.DIRECTIONS.DOWN) 
+				elseif GS.current == menu then
+					menu:handleDown()
+				end
 			end,
 			"Move down in the menu. Move the boy down or push tile down"
 		},
@@ -85,10 +97,8 @@ conf = {
 		},
 		confirm = { "return",
 			function()
-				if GS.current == game then 
-					GS.switch(victory) 
-				elseif GS.current == menu then
-					GS.switch(game)
+				 if GS.current == menu then
+					menu:handleConfirm()
 				end
 			end,
 			"Confirm"
