@@ -1,6 +1,7 @@
 local g = love.graphics
 
 local game = {}
+game.timer = Timer.new()
 
 game.DIRECTIONS = { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3 }
 game.OBJECTS = { PLAYER = 0, EXTRAPIECE = 1 }
@@ -16,7 +17,7 @@ for i = 1, game.FLOORQUADCOUNT, 1 do
 	game.floorQuads[i] = g.newQuad((i - 1) * conf.tile.w, conf.tile.h, conf.tile.w, conf.tile.h, game.tilemap:getDimensions())
 end
 game.obstacleQuads = {}
-game.OBSTACLEQUADCOUNT = 4
+game.OBSTACLEQUADCOUNT = 6
 for i = 1, game.OBSTACLEQUADCOUNT, 1 do
 	game.obstacleQuads[i] = g.newQuad((i - 1) * conf.tile.w, 2 * conf.tile.h, conf.tile.w, conf.tile.h, game.tilemap:getDimensions())
 end
@@ -107,11 +108,7 @@ game.player = {
 					if not j.found then break end
 					if i == #game.treasure then
 						game.levelOver = true
-						if level == MAXLEVEL then
-							GS.switch(won)
-						else
-							GS.switch(victory)
-						end
+						GS.switch(victory)
 					end
 				end
 			end
@@ -496,6 +493,7 @@ local function resetSize(object)
 end
 
 function game:update(dt)
+	self.timer:update(dt)
 	-- only for graphics
 	if self.selected == self.OBJECTS.PLAYER then
 		updateSize(self.player, dt)

@@ -2,9 +2,15 @@ local gameover = {}
 gameover.timer = Timer.new()
 
 local g = love.graphics
+gameover.bg = g.newImage("assets/gameover.png")
+gameover.font = g.newFont(20)
 
 function gameover:init()
-	self.text = "There there, it was just a nightmare, now go back to sleep, will you?"
+	self.text = "There there, it was just a nightmare. Now get back to bed will you?"
+end
+
+function gameover:entering()
+	g.setFont(self.font)
 end
 
 function gameover:entered()
@@ -13,7 +19,11 @@ end
 
 function gameover:draw()
 	preDraw()
-	g.print(self.text, 0, 0)
+	g.draw(self.bg, 0, 0)
+	g.setColor(0, 0, 0)
+	g.rectangle("fill", 0, select(2, g.getDimensions()) - 30, select(1, g.getDimensions()), select(2, g.getDimensions()))
+	g.setColor(255, 255, 255)
+	g.print(self.text, 70, select(2, g.getDimensions()) - 30)
 	postDraw()
 end
 
