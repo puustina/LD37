@@ -242,7 +242,7 @@ game = {
 		tile = nil,
 		draw = function(self, direction, tiles, player, enemy)
 			g.setColor(self.tile[1], self.tile[1], self.tile[1])
-			if self.tile[2] then g.setColor(self.tile[1], self.tile[1], 255) end
+			if self.tile[2] then g.setColor(self.tile[1], 255, 255) end
 			g.rectangle("fill", self.x * conf.tile.w, self.y * conf.tile.h, conf.tile.w * self.s, conf.tile.h * self.s)
 		
 			if self.tile[3] and not self.tile[3].found then
