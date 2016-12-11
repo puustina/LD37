@@ -1,7 +1,7 @@
 local g = love.graphics
 
 DIRECTIONS = { UP = 0, RIGHT = 1, DOWN = 2, LEFT = 3 }
-OBJECTS = { PLAYER = 0, EXTRAPIECE_V = 1, EXTRAPIECE_H = 2 }
+OBJECTS = { PLAYER = 0, EXTRAPIECE_V = 1 }
 
 conf = {
 	tile = {
@@ -16,16 +16,7 @@ conf = {
 		change = { "space", 
 			function()
 				if game.selected == OBJECTS.PLAYER then 
-					game.selected = OBJECTS.EXTRAPIECE_H 
-				elseif game.selected == OBJECTS.EXTRAPIECE_H then
-					if game.extraPiece.x == 0 or game.extraPiece.x == conf.area.w + 1 then
-						game.extraPiece.y = 0
-						game.extraPiece.x = 1
-					elseif game.extraPiece.y == 0 or game.extraPiece.y == conf.area.h + 1 then
-						game.extraPiece.x = 0
-						game.extraPiece.y = 1
-					end
-					game.selected = OBJECTS.EXTRAPIECE_V
+					game.selected = OBJECTS.EXTRAPIECE 
 				else
 					game.selected = OBJECTS.PLAYER 
 				end
@@ -61,6 +52,26 @@ conf = {
 		moveLeft = { "left",
 			function()
 				handleMove(DIRECTIONS.LEFT)
+			end
+		},
+		movePieceUp = { "w",
+			function()
+				handleExtraPieceMove(DIRECTIONS.UP)
+			end
+		},
+		movePieceDown = { "s",
+			function()
+				handleExtraPieceMove(DIRECTIONS.DOWN)
+			end
+		},
+		movePieceLeft = { "a",
+			function()
+				handleExtraPieceMove(DIRECTIONS.LEFT)
+			end
+		},
+		movePieceRight = { "d",
+			function()
+				handleExtraPieceMove(DIRECTIONS.RIGHT)
 			end
 		}
 	},
@@ -116,12 +127,12 @@ game = {
 		move = function(self, player, tiles)
 			-- use A*, same naming as with the wikipedia pseudocode
 			local reconstructPath = function(cameFrom, current)
+				local path = { current }
 				while cameFrom[current[1] ][current[2] ] do
-					if cameFrom[current[1] ][current[2] ][1] == self.x and cameFrom[current[1] ][current[2] ][2] == self.y then break end
 					current = cameFrom[current[1] ][current[2] ]
-					-- we actually don't need the whole path!
+					path[#path + 1] = current
 				end
-				return current -- just gives us the (second) last one
+				return path -- just gives us the (second) last one
 			end
 			local aStar = function()
 				local closedSet = {}
@@ -208,6 +219,11 @@ game = {
 			local nextMove = aStar()
 
 			if nextMove then
+				if #nextMove - 2 > 0 then 
+					nextMove = nextMove[#nextMove - 2] 
+				else
+					nextMove = nextMove[#nextMove - 1]
+				end
 				self.x = nextMove[1]
 				self.y = nextMove[2]
 			end
@@ -220,7 +236,7 @@ game = {
 	},
 	extraPiece = {
 		x = 0,
-		y = 3,
+		y = conf.area.h/2,
 		s = 1,
 		d = -1,
 		tile = nil,
@@ -352,6 +368,24 @@ function handleMove(direction)
 
 	if success then
 		game.enemy:move(game.player, game.area.tiles)
+	end
+end
+
+function handleExtraPieceMove(direction)
+	if game.selected == OBJECTS.EXTRAPIECE then
+		if direction == DIRECTIONS.UP then
+			game.extraPiece.x = conf.area.w/2
+			game.extraPiece.y = 0
+		elseif direction == DIRECTIONS.DOWN then
+			game.extraPiece.x = conf.area.w/2
+			game.extraPiece.y = conf.area.h + 1
+		elseif direction == DIRECTIONS.LEFT then
+			game.extraPiece.x = 0
+			game.extraPiece.y = conf.area.h/2
+		elseif direction == DIRECTIONS.RIGHT then
+			game.extraPiece.x = conf.area.w + 1
+			game.extraPiece.y = conf.area.h/2
+		end
 	end
 end
 
